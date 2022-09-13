@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="calendar">
+
+<!-- 일정 삭제  -->
+<delete id='delete'>
+	delete from teacher_schedule
+	where teacher_id = #{teacher_id} and  to_char(schedule_date,'rrrr/mm/dd') = #{start} and schedule=#{title}
+</delete>
+
+<!-- 일정 추가 -->
+<insert id='insert'>
+	insert into teacher_schedule (teacher_id, schedule_date, schedule, schedule_color, schedule_end)
+	values (#{teacher_id}, #{start}, #{title}, #{color}, #{end})
+</insert>
+
+<!-- 일정가져오기 -->
+<select id="calendarList" resultType="lim.CalendarVO">
+select schedule, to_char(schedule_date, 'yyyy-mm-dd') schedule_date, schedule_color, to_char(schedule_end, 'yyyy-mm-dd') schedule_end
+from teacher_schedule
+where teacher_id=#{teacher_id}
+order by schedule_date
+</select>
+</mapper>

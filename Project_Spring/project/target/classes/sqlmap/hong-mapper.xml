@@ -1,0 +1,191 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="hong.mapper">
+<!-- 반 목록 -->
+<select id = "classlist" resultType="hong.ClassListVO">
+select *
+from class
+<if test="! teacher_id.equals('admin')">
+where teacher_id = #{teacher_id}
+</if>
+order by class_id
+</select>
+
+<!-- 테스트 리스트 -->
+<select id = "testlist" resultType="hong.TestVO">
+select c.class_name, tc.test_name, to_char(test_date, 'yy/mm/dd') test_date, tc.test_id, count, avg, max, total
+from class c, testc tc, (select test_id, count(test_score) count, round(avg(test_score),2) avg, max(test_score) max
+                         from test
+                         where test_score > 0
+						 group by test_id) t,
+                        (select class_name, c.class_id, total
+                         from class c, (select class_id, count(*) total 
+                                        from student
+                                        group by class_id) co
+                         where c.class_id = co.class_id(+)
+                         order by class_id) alt
+where c.class_id(+) = tc.class_id
+and tc.test_id = t.test_id(+)
+and alt.class_id = c.class_id
+and tc.class_id = #{class_id}
+order by test_id
+</select>
+
+<!-- 테스트 전체 리스트 -->
+<select id = "testlistall" resultType="hong.TestVO">
+select c.class_name, tc.test_name, to_char(test_date, 'yy/mm/dd') test_date, tc.test_id, count, avg, max, total
+from class c, testc tc, (select test_id, count(test_score) count, round(avg(test_score),2) avg, max(test_score) max
+                         from test
+						 group by test_id) t,
+                        (select class_name, c.class_id, total
+                         from class c, (select class_id, count(*) total 
+                                        from student
+                                        group by class_id) co
+                         where c.class_id = co.class_id(+)
+                         order by class_id) alt
+where c.class_id(+) = tc.class_id
+and tc.test_id = t.test_id(+)
+and alt.class_id = c.class_id
+<if test="! teacher_id.equals('admin')">
+and teacher_id= #{teacher_id}
+order by test_id
+</if>
+</select>
+
+<!-- 테스트 추가하기 -->
+<insert id="testinsert">
+insert into testc 
+values ( (select max(test_id) from testc )+1, #{test_name}, #{class_id}, #{test_date} )
+</insert>
+
+<!-- 테스트 삭제하기 -->
+<delete id="testdelete">
+delete from testc where test_id = #{test_id}
+</delete>
+
+<!-- 테스트 수정하기 -->
+<update id="testupdate">
+update testc
+set test_name=#{test_name}, test_date=#{test_date}
+where test_id=#{test_id}
+</update>
+
+<!-- 테스트 상세 화면 -->
+<select id="testdetail" resultType="hong.TestDetailVO">
+select ss.student_name, ss.class_name, ss.test_name, nvl(t.test_score, 0) test_score, ss.student_id, ss.class_id
+from 
+(select * from test where test_id =#{test_id}) t
+right outer join 
+(select student_id, student_name, test_name, class_name, s.class_id
+from student s right outer join testc tc
+on s.class_id = tc.class_id
+right outer join class cl
+on s.class_id = cl.class_id
+where test_id=#{test_id}) ss
+on ss.student_id = t.student_id
+order by ss.student_name
+</select>
+
+<!-- 학생 리스트 -->
+<select id="studentlist" resultType="hong.HongStudentListVO">
+select *
+from student
+<if test= "class_id != 0">
+where class_id = #{class_id}
+</if>
+</select>
+
+<!-- 쌤별 학생 전체 리스트 -->
+<select id="studentalllist" resultType="hong.HongStudentListVO">
+select *
+from student
+<if test="! teacher_id.equals('admin')">
+where class_id in (select class_id from class where teacher_id = #{teacher_id})
+</if>
+</select>
+<!-- 이미 있는 출결카드의 카드번호만 지우기 -->
+<update id = "checkdelete">
+update student
+set checkcard_num=null
+where checkcard_num=#{checkcard_num}
+</update>
+<!-- 출결카드 추가하기 -->
+<update id="checkinsert">
+update student
+set checkcard_num=#{checkcard_num}
+where student_id=#{student_id}
+</update>
+<!-- 카드번호에 대한 오늘 날짜의 검색 개수 -->
+<select id ="checkcount" resultType="hong.HongCheckinVO">
+select count(*) count
+from checkin
+where student_id=(select student_id from student where checkcard_num=#{checkcard_num}) and checkin_date = to_char(sysdate, 'yy/mm/dd')
+</select>
+<!-- 출석하기 -->
+<insert id="checkin">
+insert into checkin
+values((select student_id from student where checkcard_num=#{checkcard_num}), to_char(sysdate, 'yy/mm/dd'), sysdate, null, (select max(checkin_num) from checkin)+1)
+</insert>
+<!-- 퇴실하기 -->
+<update id="checkout">
+update checkin
+set checkout_hour = sysdate
+where student_id=(select student_id from student where checkcard_num=#{checkcard_num}) and checkin_date = to_char(sysdate, 'yy/mm/dd')
+</update>
+<!-- 출석목록 가져오기 -->
+<select id="check_list" resultType="hong.HongCheckinVO">
+select checkin_num, to_char(checkin_date, 'yy/mm/dd') checkin_date, to_char(checkin_hour, 'hh24:mi:ss') checkin_hour, to_char(checkout_hour, 'hh24:mi:ss') checkout_hour, s.student_name, cl.class_name
+from checkin c left outer join student s 
+on c.student_id = s.student_id
+left outer join class cl
+on cl.class_id = s.class_id
+where checkin_date= to_char(sysdate, 'yy/mm/dd')
+<if test="! teacher_id.equals('admin')">
+and teacher_id = #{teahcer_id}
+</if>
+</select>
+<!-- 출석목록 지우기 -->
+<delete id="checkin_delete">
+delete from checkin where checkin_num=#{checkin_num}
+</delete>
+<!-- test_id 이용해서 클래스이름과 테스트 이름 가져오기 -->
+<select id="test_id" resultType="hong.TestVO">
+select test_name, test_id, class_name, c.class_id
+from testc t left outer join class c
+on c.class_id = t.class_id
+where test_id=#{test_id}
+</select>
+<!-- 출석카드 정보가 DB에 있는지 체크 -->
+<select id="doublecheck" resultType="hong.HongCheckinVO">
+select count(*) checkc
+from student
+where checkcard_num = #{checkcard_num}
+</select>
+<!-- 해당 학생의 시험정보가 존재하는지 검색 -->
+<select id="test_count" resultType="int">
+select count(*) countt
+from test
+where student_id=#{student_id}
+and test_id = #{test_id}
+</select>
+<!-- 테스트 상세화면 수정 -->
+<update id="test_detail_update">
+update test
+set test_score=#{test_score}
+where student_id=#{student_id} 
+and test_id = #{test_id}
+</update>
+<!-- 테스트 학생 점수 추가 -->
+<insert id ="test_detail_insert">
+insert into test
+values (#{test_id}, #{student_id}, #{test_score}, (select max(student_test_num) from test)+1 )
+</insert>
+
+<!-- 일정 포스트잇 -->
+<select id="schedule_list" resultType="hong.ScheduleListVO">
+select *
+from teacher_schedule
+where teacher_id=#{teacher_id}
+and schedule_date=to_char(sysdate, 'yy/mm/dd')
+</select>
+</mapper>

@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="ham.mapper">
+
+<!-- 과제 리스트 -->
+<select id = "homeworklist" resultType="ham.HamHomeworkVO">
+select c.class_name, hc.homework_name, to_char(homework_date, 'yy/mm/dd') homework_date, hc.homework_id, count, avg, max, total
+from class c, homeworkc hc, (select homework_id, count(homework_score) count, round(avg(homework_score),2) avg, max(homework_score) max
+                         from homework
+                         where homework_score>0
+						 group by homework_id) h,
+                        (select class_name, c.class_id, total
+                         from class c, (select class_id, count(*) total 
+                                        from student
+                                        group by class_id) co
+                         where c.class_id = co.class_id(+)
+                         order by class_id) alt
+where c.class_id(+) = hc.class_id
+and hc.homework_id = h.homework_id(+)
+and alt.class_id = c.class_id
+and hc.class_id = #{class_id}
+order by hc.homework_id
+</select>
+
+<!-- 과제 전체 리스트 -->
+<select id = "homeworklistall" resultType="ham.HamHomeworkVO">
+select c.class_name, hc.homework_name, to_char(homework_date, 'yy/mm/dd') homework_date, hc.homework_id, count, avg, max, total
+from class c, homeworkc hc, (select homework_id, count(homework_score) count, round(avg(homework_score),2) avg, max(homework_score) max
+                         from homework
+                         where homework_score>0
+						 group by homework_id) h,
+                        (select class_name, c.class_id, total
+                         from class c, (select class_id, count(*) total 
+                                        from student
+                                        group by class_id) co
+                         where c.class_id = co.class_id(+)
+                         order by class_id) alt
+where c.class_id(+) = hc.class_id
+and hc.homework_id = h.homework_id(+)
+and alt.class_id = c.class_id
+<if test="! teacher_id.equals('admin')">
+and teacher_id= #{teacher_id}
+order by homework_id
+</if>
+</select>
+
+<!-- 과제 추가하기 -->
+<insert id="homeworkinsert">
+insert into homeworkc 
+values ( (select max(homework_id) from homeworkc )+1, #{homework_name}, #{class_id}, #{homework_date} )
+</insert>
+
+<!-- 과제 삭제하기 -->
+<delete id="homeworkdelete">
+delete from homeworkc where homework_id = #{homewokr_id}
+</delete>
+
+<!-- 과제 수정하기 -->
+<update id="homeworkupdate">
+update homeworkc
+set homework_name=#{homework_name}, homework_date=#{homework_date}
+where homework_id=#{homework_id}
+</update>
+
+<!-- 과제 상세 화면 -->
+<select id="hdlist" resultType="ham.HomeworkDetailVO">
+select ss.student_name, homework_sub_date, ss.class_name, ss.homework_name, nvl(h.homework_score, 0) homework_score, ss.student_id
+from 
+(select * from homework where homework_id =#{homework_id}) h
+right outer join 
+(select student_id, student_name, homework_name, class_name
+from student s right outer join homeworkc hc
+on s.class_id = hc.class_id
+right outer join class cl
+on s.class_id = cl.class_id
+where homework_id=#{homework_id}) ss
+on ss.student_id = h.student_id
+order by ss.student_name
+</select>
+<!-- homework_id 이용해서 클래스이름과 테스트 이름 가져오기 -->
+<select id="homeworkid" resultType="ham.HamHomeworkVO">
+select homework_name, homework_id, class_name, c.class_id
+from homeworkc h left outer join class c
+on c.class_id = h.class_id
+where homework_id=#{homework_id}
+</select>
+
+
+
+<!-- 해당 학생의 시험정보가 존재하는지 검색 -->
+<select id="homeworkcount" resultType="int">
+select count(*) counth
+from homework
+where student_id=#{student_id}
+and homework_id = #{homework_id}
+</select>
+<!-- 테스트 상세화면 수정 -->
+<update id="homework_detail_update">
+update homework
+set homework_score=#{homework_score}
+where student_id=#{student_id} 
+and homework_id = #{homework_id}
+</update>
+<!-- 테스트 학생 점수 추가 -->
+<insert id ="homework_detail_insert">
+insert into homework
+values (#{student_id}, #{homework_score}, #{homework_id}, to_char(sysdate, 'yy/mm/dd'), (select max(student_hw_num) from homework)+1 )
+</insert>
+
+<!-- 출결 리스트 -->
+<select id="check_list" resultType="ham.HamCheckVO">
+select student_id, cc.class_id, class_name, student_name, parent_phone, checkin_date, checkin_hour, checkout_hour, checkin_num
+from class cc inner join
+(select s.student_id, class_id, student_name, parent_phone, checkin_date, checkin_hour, checkout_hour, checkin_num
+from student s left outer join
+(select student_id, checkin_date,checkin_hour, checkout_hour, checkin_num from checkin where checkin_date = #{checkin_date}) c
+on c.student_id = s.student_id
+where class_id = #{class_id}) ss
+on cc.class_id = ss.class_id
+order by student_name
+</select>
+<!-- 클래스 이름 가져오기 -->
+<select id="class_name" resultType="String">
+select class_name
+from class
+where class_id=#{class_id}
+</select>
+</mapper>

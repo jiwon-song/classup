@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="member.mapper">
+
+<!-- 회원정보신규저장(회원가입) -->
+<insert id='join'>
+insert into teacher (teacher_id, teacher_pw, teacher_name, email, social
+					, teacher_phone, salt, salt_pw )
+values (#{teacher_id}, #{teacher_pw}, #{teacher_name}, #{email}, #{social, jdbcType=VARCHAR}
+		, #{teacher_phone, jdbcType=VARCHAR}
+		, #{salt, jdbcType=VARCHAR}, #{salt_pw, jdbcType=VARCHAR})
+</insert>
+
+<!-- 회원정보변경저장 -->
+<update id="update">
+update teacher set teacher_name=#{teacher_name}, email=#{email}, social=#{social}
+where teacher_id=#{teacher_id}
+</update>
+
+<!-- 아이디중복확인(아이디존재여부) -->
+<select id="id_check" resultType="integer">
+select count(*) from teacher where teacher_id=#{teacher_id}
+</select>
+
+<!-- 비밀번호재발급시 salt, 암호화된 비밀번호 변경 -->
+<update id="reset_password">
+update teacher set salt=#{salt}, salt_pw=#{salt_pw}, teacher_pw=#{teacher_pw}
+where teacher_id=#{teacher_id}
+</update>
+
+<!-- 회원id의 salt조회 -->
+<select id="salt" resultType='String'>
+select salt from teacher where teacher_id=#{teacher_id}
+</select>
+
+<!-- 로그인 -->
+<select id="login" resultType="lee.LeeMemberVO">
+select * from teacher
+where teacher_id=#{id} and salt_pw=#{salt_pw}
+</select>
+
+<!-- 회원정보요청 -->
+<select id="getinfo" resultType="lee.LeeMemberVO">
+select * from teacher
+where teacher_id=#{teacher_id}
+</select>
+
+
+<!-- 회원정보 수정 -->
+<update id="memberUpdate">
+update teacher set teacher_name=#{teacher_name}, teacher_pw=#{teacher_pw}, teacher_phone=#{teacher_phone}, salt_pw=#{salt_pw}, email=#{email}
+where teacher_id=#{teacher_id}
+</update>
+
+</mapper>

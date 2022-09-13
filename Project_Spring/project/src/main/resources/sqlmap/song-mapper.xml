@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="song.mapper">
+
+<!-- 학생 상세목록 -->
+<select id="studentlist" resultType="song.StudentListVO">
+select s.student_name, s.student_id, 
+		s.student_pw, s.grade, 
+		h.school_name,s.parent_phone, 
+		nvl(s.student_phone, '없음') student_phone, s.class_id
+from student s, school h
+where s.school_id=h.school_id
+and s.class_id=#{class_id}
+</select>
+
+<!-- 클래스 목록 -->
+<select id = "classlist" resultType="song.ClassVO">
+select c.class_name, nvl(count(s.class_id), 0) stu_num, c.class_id  
+from class c, student s
+where c.class_id= s.class_id(+)
+<if test="! teacher_id.equals('admin')">
+and teacher_id = #{teacher_id}
+</if>
+group by c.class_name, c.class_id
+order by c.class_id
+</select>
+
+<!-- 클래스 정보 수정하기  -->
+<update id="classupdate">
+update class
+set class_name=#{class_name}
+where class_id=#{class_id}
+</update>
+
+<!-- 클래스 삭제 -->
+<delete id="classdelete">
+delete from class where class_id = #{class_id}
+</delete>
+
+<!-- 클래스 추가 -->
+<insert id="classinsert">
+insert into class
+values ( (select max(class_id) from class )+1, #{class_name}, #{teacher_id} )
+</insert>
+
+<!-- 학생 상세 정보 가져오기 -->
+<select id = "studetail" resultType="song.StudentListVO">
+select s.student_name, s.student_id, 
+		s.student_pw, s.grade, 
+		h.school_name,s.parent_phone, 
+		nvl(s.student_phone, '없음') student_phone, s.class_id
+from student s, school h
+where s.school_id=h.school_id
+and s.student_id=#{student_id}
+</select>
+
+<!-- 학생한명 과제결과 -->
+<!-- <select id="stuhwdetail" resultType="song.SongHomeworkVO">
+select c.homework_name, to_char(h.homework_sub_date, 'yy/mm/dd') homework_sub_date, nvl(h.homework_score, '0') homework_score
+from homework h, homeworkc c
+where h.homework_id = c.homework_id
+and student_id =#{student_id}
+</select> -->
+
+<select id="stuhwdetail" resultType="song.SongHomeworkVO">
+select homework_name, nvl(to_char(homework_sub_date, 'yy/mm/dd'), '-') homework_sub_date,
+    nvl(homework_score, 0) homework_score
+from (select * from homework where student_id=#{student_id}) h, homeworkc c
+where h.homework_id(+) = c.homework_id
+and class_id = (select class_id from student where student_id=#{student_id})
+</select>
+
+<!-- 학생한명 출결정보 -->
+<select id="stucheckdetail" resultType="song.SongCheckinVO">
+select to_char(checkin_date, 'yy/mm/dd') checkin_date, to_char(checkin_hour, 'hh24:mi:ss') checkin_hour
+        , to_char(checkout_hour, 'hh24:mi:ss') checkout_hour
+from checkin c left outer join student s 
+on c.student_id = s.student_id
+left outer join class cl
+on cl.class_id = s.class_id        
+where c.student_id=#{student_id}
+</select>
+
+<!-- 학생 삭제하기 -->
+<delete id="studentdelete">
+delete from student where student_id = #{student_id}
+</delete>
+
+<!-- 학생상세정보 수정하기 -->
+<update id="studentupdate">
+update student
+set student_name=#{student_name}, student_pw=#{student_pw}, grade=#{grade}, parent_phone=#{parent_phone}, student_phone=#{student_phone}
+where student_id=#{student_id}
+</update>
+
+<!-- 학생한명 테스트 결과 -->
+<select id="stutestdetail" resultType="song.SongTestVO">
+select test_name, nvl(to_char(test_date, 'yy/mm/dd'), '-') test_date, nvl(test_score, 0) test_score
+from (select * from test where student_id=#{student_id}) t, testc c
+where t.test_id(+) = c.test_id
+and class_id = (select class_id from student where student_id=#{student_id})
+</select>
+
+</mapper>
